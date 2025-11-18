@@ -4,8 +4,6 @@ from typing import Generic, TypeVar
 from ..client import Client
 
 
-
-""" REQUEST AREA """
 ResType = TypeVar('ResType')
 
 
@@ -68,11 +66,3 @@ class Request(Generic[ResType]):
         data = self.parse(res.json())
         await self.on_response(client, data)
         return data
-
-
-
-
-""" RESPONSE AREA """
-
-class Response:
-    pass

@@ -1,11 +1,11 @@
 import asyncio
 
 from typing import TYPE_CHECKING, Generic, TypeVar
-from ..listeners import BaseListener
+from ...listeners import BaseListener
 
 
 if TYPE_CHECKING:
-    from ..socket import Socket
+    from ...socket import Socket
 
 
 ResType = TypeVar("ResType")
@@ -69,7 +69,3 @@ class Listener(BaseListener):
         # socket.remove_listener(self.request.get_rcmd_id(), self)
         # self.request.fut.set_result(rdata)
 
-
-
-class Response:
-    pass
