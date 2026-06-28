@@ -10,8 +10,28 @@ class EventMethods:
         self._connected.set()
 
     async def _on_message(self: 'Socket', message) -> None:
-        """Override để xử lý message nhận được từ server."""
+        """
+        Base routing: parse message → dispatch đến các listener phù hợp.
+        Không override method này. Override `_parse_message` để handle format
+        của từng website (JSON, binary, v.v.)
+        """
+        event_id, data = self._parse_message(message)
+        await self._dispatch(event_id, data)
+
+    def _parse_message(self: 'Socket', message) -> tuple[int, any]:
+        """
+        Override method này trong subclass để parse raw message → (event_id, data).
+        Mỗi website có format khác nhau, ví dụ:
+            JSON:   data = json.loads(message); return data[0], data[1]
+            Binary: return struct.unpack('>H', message[:2])[0], message[2:]
+        """
         raise NotImplementedError
+
+    async def _dispatch(self: 'Socket', event_id: int, data) -> None:
+        """Tìm và gọi tất cả listener khớp với event_id."""
+        for listener in list(self._listeners.get(event_id, [])):
+            if listener.check_rdata(data):
+                await listener.handle(self, data)
 
     def _on_close(self: 'Socket') -> None:
         pass
@@ -20,13 +40,10 @@ class EventMethods:
         raise e
 
     def add_listener(self: 'Socket', nl: BaseListener) -> None:
-        """Thêm listener. Nếu cùng object đã tồn tại thì replace, chưa có thì append."""
+        """Thêm listener. Bỏ qua nếu đã tồn tại (tránh duplicate)."""
         listeners = self._listeners.setdefault(nl.event_id, [])
-        for i, l in enumerate(listeners):
-            if l is nl:
-                listeners[i] = nl
-                return
-        listeners.append(nl)
+        if nl not in listeners:
+            listeners.append(nl)
 
     def remove_listener(self: 'Socket', target: BaseListener) -> None:
         listeners = self._listeners.get(target.event_id, [])

@@ -1,0 +1,1 @@
+If both need a function.

@@ -58,4 +58,7 @@ class Listener(BaseListener):
         return self.request.check_rdata(rdata)
 
     async def handle(self, socket: 'Socket', rdata: list) -> None:
+        # Tự remove trước để không fire lại nếu cùng event xảy ra lần 2
+        socket.remove_listener(self)
         self.request.fut.set_result(rdata)
+
