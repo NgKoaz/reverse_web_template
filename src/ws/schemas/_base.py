@@ -26,3 +26,4 @@ class BaseSchema:
     @classmethod
     def from_dict(cls: Type[T], data: dict) -> T:
         return from_dict(cls, data, config=Config(strict=False))
+

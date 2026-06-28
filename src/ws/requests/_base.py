@@ -16,8 +16,15 @@ class Request(Generic[ResType]):
 
     def __init__(self):
         self.msg: list | dict | None = None
-        self.response_type: type[ResType] | None = None
+        self.response_type: type[ResType] | None = self._get_response_type()
         self.fut: asyncio.Future = asyncio.get_running_loop().create_future()
+
+    @classmethod
+    def _get_response_type(cls) -> type[ResType] | None:
+        for base in getattr(cls, "__orig_bases__", []):
+            if hasattr(base, "__args__") and base.__args__:
+                return base.__args__[0]
+        return None
 
     @classmethod
     def _next_msg_id(cls) -> int:
@@ -27,7 +34,7 @@ class Request(Generic[ResType]):
     def build(self, socket: 'Socket') -> None:
         raise NotImplementedError
 
-    def check_rdata(self, rdata: list | dict) -> bool:
+    def should_handle(self, rdata: list | dict) -> bool:
         raise NotImplementedError
 
     def parse(self, data: dict) -> ResType:
@@ -37,8 +44,11 @@ class Request(Generic[ResType]):
         """
         if self.response_type is None:
             return data
+
+        # Optional: Handle packet if response_type has from_packet method
         if hasattr(self.response_type, 'from_dict'):
             return self.response_type.from_dict(data)
+
         return data
 
     def on_response(self, socket: 'Socket', data: ResType) -> None:
@@ -46,19 +56,19 @@ class Request(Generic[ResType]):
         pass
 
     async def send(self, socket: 'Socket') -> ResType:
+        # TODO: Implement send
         raise NotImplementedError
 
 
-class Listener(BaseListener):
+class OnceListener(BaseListener):
     def __init__(self, event_id: int, request: Request):
         super().__init__(event_id=event_id)
         self.request = request
 
-    def check_rdata(self, rdata: list) -> bool:
-        return self.request.check_rdata(rdata)
+    def should_handle(self, rdata: list) -> bool:
+        return self.request.should_handle(rdata)
 
     async def handle(self, socket: 'Socket', rdata: list) -> None:
-        # Tự remove trước để không fire lại nếu cùng event xảy ra lần 2
         socket.remove_listener(self)
         self.request.fut.set_result(rdata)
 

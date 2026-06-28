@@ -42,7 +42,7 @@ Client()(Request) → Request.build() → Request.send() → parse() → Respons
 
 ### WebSocket
 ```
-Socket.start() → _listen() → _on_message() → Listener.check_rdata() → Listener.handle()
+Socket.start() → _listen() → _on_message() → Listener.should_handle() → Listener.handle()
 ```
 
 ---
@@ -156,8 +156,8 @@ class JoinRoomReq(Request[JoinRoomResponse]):
         # Format message gửi lên server (tuỳ protocol của từng website)
         self.msg = [10, {"room": self.room_id, "mid": self._next_msg_id()}]
 
-    def check_rdata(self, rdata: list | dict) -> bool:
-        return isinstance(rdata, list) and rdata[0] == self.RESPONSE_EVENT_ID
+    def should_handle(self, data: any) -> bool:
+        return isinstance(data, list) and data[0] == self.RESPONSE_EVENT_ID
 
     async def send(self, socket: 'Socket') -> JoinRoomResponse:
         # Đăng ký listener trước khi gửi để không miss response
@@ -180,12 +180,12 @@ class Listener(BaseListener):
         super().__init__(event_id=event_id)
         self.request = request
 
-    def check_rdata(self, rdata: list) -> bool:
-        return self.request.check_rdata(rdata)
-
-    async def handle(self, socket: 'Socket', rdata: list) -> None:
+    def should_handle(self, data: any) -> bool:
+        return self.request.should_handle(data)
+ 
+    async def handle(self, socket: 'Socket', data: any) -> None:
         socket.remove_listener(self)
-        self.request.fut.set_result(rdata)
+        self.request.fut.set_result(data)
 ```
 
 ### Bước 3 — Override `_on_message` trong Socket
@@ -203,7 +203,7 @@ class Socket(BaseSocket, ConnectionMethods, EventMethods):
         event_id = data[0]                  # tuỳ format của website
         if event_id in self._listeners:
             for listener in self._listeners[event_id]:
-                if listener.check_rdata(data):
+                if listener.should_handle(data):
                     await listener.handle(self, data)
 ```
 
